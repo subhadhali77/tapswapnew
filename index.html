@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TapSwap</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #212121;
+            --tg-theme-text-color: #ffffff;
+            --tg-theme-hint-color: #aaaaaa;
+            --tg-theme-link-color: #8774e1;
+            --tg-theme-button-color: #8774e1;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #181818;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .bottom-bar {
+            display: flex;
+            justify-content: space-around;
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-top: 1px solid var(--tg-theme-hint-color);
+            padding: 10px 0;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .nav-item {
+            cursor: pointer;
+            text-align: center;
+            flex-grow: 1;
+            padding: 5px 0;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .nav-item.active {
+            color: var(--tg-theme-link-color);
+        }
+
+        #tap-page {
+            text-align: center;
+        }
+
+        #cat-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            transition: transform 0.1s;
+        }
+
+        #cat-image:active {
+            transform: scale(0.9);
+        }
+
+        #energy-bar-container {
+            width: 80%;
+            height: 20px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+
+        #energy-bar {
+            height: 100%;
+            width: 100%;
+            background-color: var(--tg-theme-link-color);
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+
+        .task-list, .withdraw-methods {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item, .withdraw-item {
+            background-color: var(--tg-theme-secondary-bg-color);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-item button, .withdraw-item button {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .task-item button:disabled {
+            background-color: var(--tg-theme-hint-color);
+            cursor: not-allowed;
+        }
+
+        #withdraw-page input {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--tg-theme-hint-color);
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-content">
+        <div id="profile-page" class="page">
+            <h2>Profile</h2>
+            <p><strong>Name:</strong> <span id="user-name"></span></p>
+            <p><strong>Joining Date:</strong> <span id="joining-date"></span></p>
+            <p><strong>Referral Link:</strong> <span id="referral-link"></span></p>
+            <p><strong>Points:</strong> <span id="profile-points"></span></p>
+        </div>
+
+        <div id="tap-page" class="page">
+            <h2>Tap the Cat!</h2>
+            <img src="https://i.imgur.com/k4w2d7b.png" alt="Cat" id="cat-image">
+            <p>Points: <span id="tap-points">0</span></p>
+            <div id="energy-bar-container">
+                <div id="energy-bar"></div>
+            </div>
+            <p>Energy: <span id="energy-level">100</span> / 100</p>
+        </div>
+
+        <div id="task-page" class="page">
+            <h2>Tasks</h2>
+            <ul id="task-list" class="task-list"></ul>
+        </div>
+
+        <div id="withdraw-page" class="page">
+            <h2>Withdraw</h2>
+            <div id="withdraw-form">
+                <input type="number" id="withdraw-amount" placeholder="Amount to withdraw">
+                <ul id="withdraw-methods" class="withdraw-methods">
+                     <li class="withdraw-item">
+                        <span>PayPal</span>
+                        <button onclick="withdraw('PayPal')">Withdraw</button>
+                    </li>
+                    <li class="withdraw-item">
+                        <span>Wired Transfer</span>
+                        <button onclick="withdraw('Wired Transfer')">Withdraw</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <div class="nav-item active" onclick="showPage('profile')">Profile</div>
+        <div class="nav-item" onclick="showPage('tap')">Tap</div>
+        <div class="nav-item" onclick="showPage('task')">Task</div>
+        <div class="nav-item" onclick="showPage('withdraw')">Withdraw</div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        let userData = {};
+
+        // Local Storage Database
+        let db = {
+            points: 0,
+            energy: 100,
+            lastLogin: new Date().toISOString(),
+            joiningDate: new Date().toISOString(),
+            completedTasks: []
+        };
+
+        function loadDB() {
+            const savedDB = localStorage.getItem('tapswapDB');
+            if (savedDB) {
+                db = JSON.parse(savedDB);
+            }
+        }
+
+        function saveDB() {
+            localStorage.setItem('tapswapDB', JSON.stringify(db));
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(`${pageId}-page`).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelector(`.nav-item[onclick="showPage('${pageId}')"]`).classList.add('active');
+            updateUI();
+        }
+
+        // Tap Section
+        const catImage = document.getElementById('cat-image');
+        catImage.addEventListener('click', () => {
+            if (db.energy > 0) {
+                db.points++;
+                db.energy--;
+                saveDB();
+                updateUI();
+            }
+        });
+
+        // Energy Refill
+        setInterval(() => {
+            if (db.energy < 100) {
+                db.energy++;
+                saveDB();
+                updateUI();
+            }
+        }, 1000);
+
+        // Task Section
+        const tasks = [
+            { id: 1, text: 'Watch Video 1', points: 1000, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+            { id: 2, text: 'Watch Video 2', points: 1000, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+            { id: 3, text: 'Watch Video 3', points: 1000, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+            { id: 4, text: 'Watch Video 4', points: 1000, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+            { id: 5, text: 'Watch Video 5', points: 1000, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+        ];
+
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const isCompleted = db.completedTasks.includes(task.id);
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.innerHTML = `
+                    <span>${task.text} (+${task.points} points)</span>
+                    <button onclick="completeTask(${task.id}, '${task.url}')" ${isCompleted ? 'disabled' : ''}>${isCompleted ? 'Completed' : 'Go'}</button>
+                `;
+                taskList.appendChild(li);
+            });
+        }
+
+        function completeTask(taskId, url) {
+            window.open(url, '_blank');
+            if (!db.completedTasks.includes(taskId)) {
+                db.points += tasks.find(t => t.id === taskId).points;
+                db.completedTasks.push(taskId);
+                saveDB();
+                renderTasks();
+                updateUI();
+            }
+        }
+        
+        // Withdraw Section
+        function withdraw(method) {
+            const amount = parseInt(document.getElementById('withdraw-amount').value);
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+
+            if (amount > db.points) {
+                alert('Insufficient points.');
+                return;
+            }
+
+            // Simulate withdrawal to localhost
+            fetch('http://localhost:3000/withdraw', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userData.id,
+                    amount: amount,
+                    method: method
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    db.points -= amount;
+                    saveDB();
+                    updateUI();
+                    alert('Withdrawal successful!');
+                    document.getElementById('withdraw-amount').value = '';
+                } else {
+                    alert('Withdrawal failed. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Withdrawal error:', error);
+                alert('An error occurred during withdrawal. This is likely because a local server is not running to process the request.');
+            });
+        }
+
+        function updateUI() {
+            // Profile
+            document.getElementById('user-name').innerText = userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'N/A';
+            document.getElementById('joining-date').innerText = new Date(db.joiningDate).toLocaleDateString();
+            document.getElementById('referral-link').innerText = `t.me/your_bot_name?start=${userData.id}`;
+            document.getElementById('profile-points').innerText = db.points;
+
+            // Tap
+            document.getElementById('tap-points').innerText = db.points;
+            document.getElementById('energy-level').innerText = db.energy;
+            document.getElementById('energy-bar').style.width = `${db.energy}%`;
+        }
+        
+        // Initialization
+        window.onload = () => {
+            tg.ready();
+            
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                userData = tg.initDataUnsafe.user;
+            } else {
+                // For testing in a regular browser
+                userData = {
+                    id: 12345,
+                    first_name: 'Test',
+                    last_name: 'User',
+                    username: 'testuser'
+                };
+            }
+
+            loadDB();
+            db.lastLogin = new Date().toISOString();
+            saveDB();
+            
+            renderTasks();
+            showPage('profile');
+        };
+
+    </script>
+
+</body>
+</html>
